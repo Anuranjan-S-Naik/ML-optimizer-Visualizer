@@ -30,6 +30,9 @@
             <button class="tab-btn" data-tab="tour">
                 <span class="tab-icon">🎓</span> Lab Tour
             </button>
+            <button class="tab-btn" data-tab="diagnostics">
+                <span class="tab-icon">🔬</span> Real Diagnostics
+            </button>
         </nav>
     </header>
 
@@ -376,6 +379,238 @@
 
         </section>
 
+        <!-- ==================== REAL DIAGNOSTICS ==================== -->
+        <section id="section-diagnostics" class="tab-content">
+
+            <!-- Loading Overlay -->
+            <div class="diag-loading-overlay" id="diag-loading">
+                <div class="diag-spinner"></div>
+                <div class="diag-load-title">Analyzing your model...</div>
+                <div class="diag-load-steps">
+                    <div class="diag-load-step" id="dls1"><div class="diag-load-dot"></div>Parsing Python source code</div>
+                    <div class="diag-load-step" id="dls2"><div class="diag-load-dot"></div>Detecting optimizer &amp; hyperparameters</div>
+                    <div class="diag-load-step" id="dls3"><div class="diag-load-dot"></div>Running diagnostic rule engine</div>
+                    <div class="diag-load-step" id="dls4"><div class="diag-load-dot"></div>Scoring model health (12 checks)</div>
+                    <div class="diag-load-step" id="dls5"><div class="diag-load-dot"></div>Generating best-fit suggestion</div>
+                </div>
+            </div>
+
+            <!-- ── UPLOAD VIEW ── -->
+            <div id="diag-upload-view">
+                <div class="diag-upload-page">
+                    <div class="diag-hero">
+                        <div class="diag-eyebrow">✦ Real ML Diagnostics Engine</div>
+                        <h2 class="diag-title">Upload your model.<br><span class="diag-highlight">Train it for real.</span></h2>
+                        <p class="diag-subtitle">Paste your training code + dataset. We'll parse your architecture, detect issues, and train your optimizer vs our suggestion — side by side with real loss curves.</p>
+                    </div>
+
+                    <!-- Upload Tabs -->
+                    <div class="diag-upload-tabs">
+                        <div class="diag-upload-tab active" id="diag-tab-file">📁 Upload File</div>
+                        <div class="diag-upload-tab" id="diag-tab-paste">📋 Paste Code</div>
+                    </div>
+
+                    <!-- File Upload -->
+                    <div id="diag-file-section">
+                        <div class="diag-dropzone" id="diag-dropzone">
+                            <span class="diag-drop-icon">🐍</span>
+                            <div class="diag-drop-title">Drop your model file here</div>
+                            <div class="diag-drop-sub">Python scripts or Jupyter notebooks</div>
+                            <div class="diag-fmt-chips">
+                                <span class="diag-fmt-chip hl">.py</span>
+                                <span class="diag-fmt-chip hl">.ipynb</span>
+                                <span class="diag-fmt-chip hl">.pth</span>
+                                <span class="diag-fmt-chip">.txt</span>
+                            </div>
+                        </div>
+                        <input type="file" id="diag-file-input" accept=".py,.ipynb,.txt,.pth,.pt" style="display:none">
+                    </div>
+
+                    <!-- Paste Code -->
+                    <div id="diag-paste-section" style="display:none" class="diag-paste-area">
+                        <label class="diag-paste-label">Paste your training / model code</label>
+                        <textarea id="diag-code-input" class="diag-textarea" placeholder="# Paste your PyTorch / TensorFlow code here
+import torch.nn as nn
+import torch.optim as optim
+
+class MyModel(nn.Module):
+    ...
+
+optimizer = optim.SGD(model.parameters(), lr=0.1)"></textarea>
+
+                        <label class="diag-paste-label" style="margin-top:12px">Paste a few rows of your dataset (CSV or JSON)</label>
+                        <textarea id="diag-dataset-input" class="diag-textarea diag-dataset-ta" placeholder="x1,x2,x3,y
+0.2,0.8,0.5,0
+0.9,0.1,0.3,1
+0.4,0.6,0.8,0
+..."></textarea>
+
+                        <button class="diag-analyze-btn" id="diag-analyze-btn">
+                            🔍 Analyze &amp; Prepare Training
+                        </button>
+                    </div>
+
+                    <!-- Demos -->
+                    <div class="diag-divider">or try a demo</div>
+                    <div class="diag-demo-grid">
+                        <div class="diag-demo-card glass-card" data-demo="sgd_high_lr">
+                            <div class="diag-demo-title">SGD with high LR</div>
+                            <div class="diag-demo-desc">Classifier using SGD lr=0.1 — too aggressive.</div>
+                            <div class="diag-demo-tags"><span class="diag-tag bad">oscillating loss</span></div>
+                        </div>
+                        <div class="diag-demo-card glass-card" data-demo="sigmoid_deep">
+                            <div class="diag-demo-title">Deep net + Sigmoid</div>
+                            <div class="diag-demo-desc">6-layer network with Sigmoid — vanishing gradient.</div>
+                            <div class="diag-demo-tags"><span class="diag-tag bad">vanishing grad</span></div>
+                        </div>
+                        <div class="diag-demo-card glass-card" data-demo="no_regularization">
+                            <div class="diag-demo-title">Adam without regularization</div>
+                            <div class="diag-demo-desc">Good optimizer, no dropout — overfitting risk.</div>
+                            <div class="diag-demo-tags"><span class="diag-tag warn">overfitting</span></div>
+                        </div>
+                        <div class="diag-demo-card glass-card" data-demo="rnn_no_clip">
+                            <div class="diag-demo-title">LSTM without grad clip</div>
+                            <div class="diag-demo-desc">Recurrent model with no clipping — can explode.</div>
+                            <div class="diag-demo-tags"><span class="diag-tag bad">exploding grad</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── RESULTS VIEW ── -->
+            <div id="diag-results-view" style="display:none">
+                <div class="diag-results-page">
+
+                    <!-- Code Inspector + Findings -->
+                    <div class="diag-inspector">
+                        <div class="diag-code-panel glass-card">
+                            <div class="diag-panel-hdr">
+                                <span class="diag-panel-hdr-title">Source Code Inspector</span>
+                                <span class="diag-file-badge" id="diag-file-badge">model.py</span>
+                            </div>
+                            <div class="diag-code-view" id="diag-code-view"></div>
+                        </div>
+
+                        <div class="diag-findings-panel glass-card">
+                            <div class="diag-panel-hdr">
+                                <span class="diag-panel-hdr-title">Parsed Findings</span>
+                            </div>
+                            <!-- Score Ring -->
+                            <div class="diag-score-meter">
+                                <div class="diag-score-ring-wrap">
+                                    <svg width="64" height="64" viewBox="0 0 64 64">
+                                        <circle class="diag-score-ring-bg" cx="32" cy="32" r="26"/>
+                                        <circle class="diag-score-ring-fill" id="diag-score-ring-fill" cx="32" cy="32" r="26" stroke-dasharray="163.4" stroke-dashoffset="163.4"/>
+                                    </svg>
+                                    <div class="diag-score-ring-label">
+                                        <span class="diag-score-num" id="diag-score-num">0</span>
+                                        <span class="diag-score-lbl">/100</span>
+                                    </div>
+                                </div>
+                                <div class="diag-score-info">
+                                    <div class="diag-score-title" id="diag-score-title">Analyzing...</div>
+                                    <div class="diag-score-subtitle" id="diag-score-subtitle">Health score based on 12 diagnostic checks</div>
+                                </div>
+                            </div>
+                            <div class="diag-finding-list" id="diag-finding-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Model A vs B Cards -->
+                    <div class="diag-model-grid">
+                        <div class="diag-model-card diag-is-bad glass-card">
+                            <div class="diag-model-card-hdr">
+                                <span class="diag-model-badge bad">YOUR MODEL</span>
+                                <span class="diag-model-card-title" id="diag-bad-card-title">Current Setup</span>
+                                <span class="diag-model-score-chip bad" id="diag-bad-score-chip">—</span>
+                            </div>
+                            <div class="diag-model-card-body">
+                                <div class="diag-metric-table" id="diag-bad-metrics">Waiting for training...</div>
+                            </div>
+                        </div>
+                        <div class="diag-model-card diag-is-good glass-card">
+                            <div class="diag-model-card-hdr">
+                                <span class="diag-model-badge good">SUGGESTED</span>
+                                <span class="diag-model-card-title" id="diag-good-card-title">Recommended Fix</span>
+                                <span class="diag-model-score-chip good" id="diag-good-score-chip">—</span>
+                            </div>
+                            <div class="diag-model-card-body">
+                                <div class="diag-metric-table" id="diag-good-metrics">Waiting for training...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Why + Fix + Diff -->
+                    <div class="diag-why-section glass-card">
+                        <div class="diag-panel-hdr">
+                            <span class="diag-panel-hdr-title">Diagnostic Explanation</span>
+                        </div>
+                        <div class="diag-why-grid">
+                            <div class="diag-why-col">
+                                <div class="diag-why-eyebrow">Root Cause</div>
+                                <div class="diag-why-title" id="diag-why-title">Loading...</div>
+                                <div class="diag-why-body" id="diag-why-body"></div>
+                            </div>
+                            <div class="diag-why-divider"></div>
+                            <div class="diag-why-col">
+                                <div class="diag-why-eyebrow">What to change</div>
+                                <div class="diag-fix-steps" id="diag-fix-steps"></div>
+                            </div>
+                            <div class="diag-why-divider"></div>
+                            <div class="diag-why-col">
+                                <div class="diag-why-eyebrow">Code diff</div>
+                                <div class="diag-code-diff-wrap">
+                                    <div class="diag-diff-hdr">optimizer change</div>
+                                    <div class="diag-diff-body" id="diag-code-diff"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Training Simulation -->
+                    <div class="diag-sim-section glass-card">
+                        <div class="diag-sim-hdr">
+                            <div class="diag-sim-title">⚡ Live Training — Real Data</div>
+                            <div class="diag-sim-controls">
+                                <span class="diag-epoch-label">Epoch <span id="diag-epoch-counter">0</span>/30</span>
+                                <button class="btn btn-primary btn-sm" id="diag-train-btn" disabled>▶ Paste dataset first</button>
+                                <button class="btn btn-secondary btn-sm" id="diag-reset-btn">⟳ Reset</button>
+                            </div>
+                        </div>
+
+                        <div class="diag-sim-canvases">
+                            <div class="diag-sim-chart-block">
+                                <div class="diag-sim-chart-lbl diag-lbl-bad">Your model — <span id="diag-bad-sim-label" style="color:var(--accent-red)">Current</span></div>
+                                <canvas class="diag-sim-canvas" id="diag-bad-chart" width="560" height="180"></canvas>
+                            </div>
+                            <div class="diag-sim-chart-block">
+                                <div class="diag-sim-chart-lbl diag-lbl-good">Suggested — <span id="diag-good-sim-label" style="color:var(--accent-green)">Recommended</span></div>
+                                <canvas class="diag-sim-canvas" id="diag-good-chart" width="560" height="180"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="diag-insight-bar" id="diag-insight-bar">
+                            Press <span>▶ TRAIN & COMPARE</span> to start real training.
+                        </div>
+
+                        <div class="diag-progress">
+                            <span class="diag-progress-label">TRAINING</span>
+                            <div class="diag-progress-track"><div class="diag-progress-fill" id="diag-progress-fill"></div></div>
+                            <span class="diag-epoch-val" id="diag-epoch-val">0 / 30</span>
+                        </div>
+                    </div>
+
+                    <!-- Back button -->
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 0 32px">
+                        <button class="btn btn-secondary" id="diag-back-btn">← Upload another model</button>
+                        <span style="font-size:0.7rem;color:var(--text-muted);font-family:'Courier New',monospace">Real Diagnostics Engine v2.0 · Backend: localhost:8000</span>
+                    </div>
+
+                </div>
+            </div>
+
+        </section>
+
     </main>
 
     <!-- ==================== FOOTER ==================== -->
@@ -383,9 +618,10 @@
         <p>ML Optimizer Visualizer · Built for educational demonstrations · No dependencies required</p>
     </footer>
 
-    <!-- Scripts (order matters: foundation → network → controller) -->
+    <!-- Scripts (order matters: foundation → network → controller → diagnostics) -->
     <script src="optimizers.js"></script>
     <script src="network.js"></script>
+    <script src="diagnostics-ui.js"></script>
     <script src="app.js"></script>
 
 </body>

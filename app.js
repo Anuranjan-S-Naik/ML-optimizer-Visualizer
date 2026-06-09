@@ -86,6 +86,11 @@
             this.initNetworkControls();
             this.initTour();
 
+            // Init diagnostics tab (from diagnostics-ui.js)
+            if (typeof window.initDiagnostics === 'function') {
+                window.initDiagnostics();
+            }
+
             // Initial renders
             this.renderContour();
             this.initNetworkPlayground();
