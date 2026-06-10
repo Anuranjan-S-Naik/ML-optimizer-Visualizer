@@ -366,11 +366,28 @@ criterion = nn.CrossEntropyLoss()`,
 
     async function startAnalysis() {
         const code = document.getElementById('diag-code-input').value.trim();
-        const dataset = document.getElementById('diag-dataset-input').value.trim();
+        let dataset = document.getElementById('diag-dataset-input').value.trim();
 
         if (code.length < 10) {
             showNotification('Please provide more code to analyze.', 'bad');
             return;
+        }
+
+        // Auto-inject a dummy dataset if the user didn't provide one so training always works
+        if (!dataset || dataset.length < 10) {
+            dataset = `feature1,feature2,feature3,target
+0.23,0.81,0.55,0
+0.91,0.12,0.34,1
+0.45,0.66,0.82,0
+0.77,0.33,0.19,1
+0.11,0.95,0.63,0
+0.88,0.22,0.41,1
+0.34,0.71,0.95,0
+0.62,0.48,0.27,1
+0.50,0.50,0.50,0
+0.80,0.10,0.90,1`;
+            document.getElementById('diag-dataset-input').value = dataset;
+            showNotification('No dataset provided. Using a generated mock dataset for simulation.', 'good');
         }
 
         DiagState.code = code;
