@@ -118,6 +118,15 @@ class ModelCodeParser:
                 if func_name:
                     fn_lower = func_name.lower()
 
+                    # --- sklearn MLPClassifier / MLPRegressor ---
+                    if "mlpclassifier" in fn_lower or "mlpregressor" in fn_lower:
+                        self._extract_sklearn_mlp(node, result)
+                        if "mlpregressor" in fn_lower:
+                            result.task_type = "regression"
+                        else:
+                            result.task_type = "classification"
+                        continue
+
                     # Check if it's an optimizer call
                     for opt_key, opt_name in self.OPTIMIZER_MAP.items():
                         if opt_key in fn_lower and ("optim" in fn_lower or fn_lower.endswith(opt_key)):
@@ -191,6 +200,76 @@ class ModelCodeParser:
                 if isinstance(kw.value, ast.Constant):
                     result.weight_decay = float(kw.value.value)
 
+    def _extract_sklearn_mlp(self, node: ast.Call, result: ParsedModel):
+        """Extract architecture info from sklearn MLPClassifier / MLPRegressor."""
+        # Solver → maps to our optimizer names
+        SKLEARN_SOLVER_MAP = {
+            "adam": "Adam",
+            "sgd": "SGD",
+            "lbfgs": "LBFGS",
+        }
+        # Activation → maps to our activation names
+        SKLEARN_ACT_MAP = {
+            "relu": "relu",
+            "tanh": "tanh",
+            "logistic": "sigmoid",
+            "identity": "none",
+        }
+
+        for kw in node.keywords:
+            if kw.arg == "solver" and isinstance(kw.value, ast.Constant):
+                solver = str(kw.value.value).lower()
+                if solver in SKLEARN_SOLVER_MAP:
+                    result.optimizer = SKLEARN_SOLVER_MAP[solver]
+            elif kw.arg == "learning_rate_init" and isinstance(kw.value, ast.Constant):
+                result.lr = float(kw.value.value)
+            elif kw.arg == "alpha" and isinstance(kw.value, ast.Constant):
+                result.weight_decay = float(kw.value.value)
+            elif kw.arg == "activation" and isinstance(kw.value, ast.Constant):
+                act = str(kw.value.value).lower()
+                mapped = SKLEARN_ACT_MAP.get(act, act)
+                if mapped not in result.activations:
+                    result.activations.append(mapped)
+            elif kw.arg == "hidden_layer_sizes":
+                sizes = self._extract_tuple_ints(kw.value)
+                if sizes:
+                    result.layer_sizes = sizes
+                    result.layer_count = len(sizes)
+            elif kw.arg == "max_iter" and isinstance(kw.value, ast.Constant):
+                pass  # not needed but valid
+            elif kw.arg == "early_stopping" and isinstance(kw.value, ast.Constant):
+                if kw.value.value:
+                    result.has_dropout = True  # treat early stopping as a form of regularization
+
+        # sklearn MLPClassifier uses cross-entropy by default
+        result.loss_function = "CrossEntropy"
+        result.framework = "sklearn"
+
+        # Default solver in sklearn is 'adam'
+        if result.optimizer == "Unknown":
+            result.optimizer = "Adam"
+        # Default lr in sklearn is 0.001
+        if result.lr is None:
+            result.lr = 0.001
+        # Default activation in sklearn is 'relu'
+        if not result.activations:
+            result.activations = ["relu"]
+        # Default hidden_layer_sizes is (100,)
+        if not result.layer_sizes:
+            result.layer_sizes = [100]
+            result.layer_count = 1
+
+    def _extract_tuple_ints(self, node) -> list:
+        """Extract integer values from a tuple AST node like (64, 32)."""
+        if isinstance(node, ast.Tuple):
+            return [
+                int(elt.value) for elt in node.elts
+                if isinstance(elt, ast.Constant) and isinstance(elt.value, (int, float))
+            ]
+        elif isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+            return [int(node.value)]
+        return []
+
     def _extract_from_regex(self, code: str, code_lower: str, result: ParsedModel):
         """Regex fallback for extracting info that AST might miss."""
 
@@ -204,6 +283,10 @@ class ModelCodeParser:
                 (r"optim\.sgd\s*\(|sgd\s*\(", "SGD"),
                 (r"keras\.optimizers\.sgd|compile.*sgd", "SGD"),
                 (r"keras\.optimizers\.adam|compile.*adam", "Adam"),
+                # sklearn solver regex fallback
+                (r"solver\s*=\s*['\"]adam['\"]", "Adam"),
+                (r"solver\s*=\s*['\"]sgd['\"]", "SGD"),
+                (r"solver\s*=\s*['\"]lbfgs['\"]", "LBFGS"),
             ]
             for pattern, name in opt_patterns:
                 if re.search(pattern, code, re.IGNORECASE):
@@ -274,12 +357,24 @@ class ModelCodeParser:
 
         # Loss function
         if result.loss_function == "Unknown":
-            if re.search(r"crossentropy|cross_entropy", code, re.IGNORECASE):
+            if re.search(r"crossentropy|cross_entropy|log_loss", code, re.IGNORECASE):
                 result.loss_function = "CrossEntropy"
                 result.task_type = "classification"
-            elif re.search(r"mseloss|mean_squared", code, re.IGNORECASE):
+            elif re.search(r"mseloss|mean_squared|mse_loss", code, re.IGNORECASE):
                 result.loss_function = "MSE"
                 result.task_type = "regression"
             elif re.search(r"bceloss|binary_cross", code, re.IGNORECASE):
                 result.loss_function = "BCE"
                 result.task_type = "classification"
+            elif re.search(r"accuracy_score|accuracy", code, re.IGNORECASE):
+                result.loss_function = "CrossEntropy"
+                result.task_type = "classification"
+
+        # sklearn hidden_layer_sizes regex fallback
+        if result.layer_count == 0:
+            hlm = re.search(r"hidden_layer_sizes\s*=\s*\(([\d\s,]+)\)", code)
+            if hlm:
+                sizes = [int(s.strip()) for s in hlm.group(1).split(',') if s.strip().isdigit()]
+                if sizes:
+                    result.layer_sizes = sizes
+                    result.layer_count = len(sizes)

@@ -481,9 +481,18 @@ criterion = nn.CrossEntropyLoss()`,
         document.getElementById('diag-bad-score-chip').textContent = `Score: ${suggestion.bad_score}/100`;
         document.getElementById('diag-good-score-chip').textContent = `Score: ${suggestion.good_score}/100`;
 
-        // Update labels on chart
-        document.getElementById('diag-bad-sim-label').textContent = suggestion.bad_label;
-        document.getElementById('diag-good-sim-label').textContent = suggestion.good_label;
+        // Update labels on chart with actual names
+        const badChartLabel = suggestion.bad_label || `${parsed.optimizer || 'Current'}`;
+        const goodChartLabel = suggestion.good_label || 'Recommended';
+        document.getElementById('diag-bad-sim-label').textContent = badChartLabel;
+        document.getElementById('diag-good-sim-label').textContent = goodChartLabel;
+
+        // Show loss function in the chart section title if available
+        const lossInfo = suggestion.loss_function || parsed.loss_function || '';
+        const simTitle = document.querySelector('.diag-sim-title');
+        if (simTitle && lossInfo && lossInfo !== 'Unknown') {
+            simTitle.innerHTML = `\u26a1 Live Training \u2014 ${lossInfo} Loss`;
+        }
 
         // Why section
         document.getElementById('diag-why-title').textContent = suggestion.root_cause;
@@ -698,6 +707,14 @@ criterion = nn.CrossEntropyLoss()`,
         if (data.epoch === 0) {
             DiagState.totalEpochs = data.total_epochs;
             document.getElementById('diag-insight-bar').innerHTML = 'Training started — watching for patterns...';
+
+            // Update chart labels with real model names from backend
+            if (data.model_a && data.model_a.name) {
+                document.getElementById('diag-bad-sim-label').textContent = data.model_a.name;
+            }
+            if (data.model_b && data.model_b.name) {
+                document.getElementById('diag-good-sim-label').textContent = data.model_b.name;
+            }
             return;
         }
 

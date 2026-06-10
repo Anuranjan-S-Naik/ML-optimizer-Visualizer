@@ -66,6 +66,7 @@ class Suggestion:
     suggested_lr: float = 0.001
     suggested_weight_decay: float = 0.0
     suggested_activations: list = field(default_factory=list)
+    loss_function: str = "CrossEntropy"
 
     def to_dict(self):
         return {
@@ -84,6 +85,7 @@ class Suggestion:
             "suggested_lr": self.suggested_lr,
             "suggested_weight_decay": self.suggested_weight_decay,
             "suggested_activations": self.suggested_activations,
+            "loss_function": self.loss_function,
         }
 
 
@@ -291,11 +293,17 @@ def generate_suggestion(parsed: ParsedModel, diag: DiagResult) -> Suggestion:
     actionable = sorted(criticals + warnings, key=lambda i: i.penalty, reverse=True)
     primary = actionable[0] if actionable else None
 
+    # Build descriptive labels
+    lr_str = f" lr={parsed.lr}" if parsed.lr else ""
+    loss_str = parsed.loss_function if parsed.loss_function != "Unknown" else "CrossEntropy"
+    layers_str = f" [{len(parsed.layer_sizes)} layers]" if parsed.layer_sizes else ""
+
     suggestion = Suggestion(
         optimizer_name=parsed.optimizer,
-        bad_label=f"{parsed.optimizer} (Current)",
+        bad_label=f"{parsed.optimizer}{lr_str} ({loss_str})",
         bad_score=diag.score,
         good_score=min(97, diag.score + 45),
+        loss_function=loss_str,
         # Defaults for training
         suggested_optimizer="Adam",
         suggested_lr=0.001,
@@ -316,7 +324,7 @@ def generate_suggestion(parsed: ParsedModel, diag: DiagResult) -> Suggestion:
         suggestion.bad_curve_type = "slow"
 
     if not primary:
-        suggestion.good_label = f"{parsed.optimizer} (Optimized)"
+        suggestion.good_label = f"{parsed.optimizer} + LR Scheduler"
         suggestion.root_cause = "Model looks healthy!"
         suggestion.root_body = "No major issues detected. Minor improvements possible with learning rate scheduling."
         suggestion.fixes = [["Add LR Scheduler", "CosineAnnealingLR improves final accuracy by ~2-3%."]]

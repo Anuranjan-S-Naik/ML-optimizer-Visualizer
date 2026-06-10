@@ -370,7 +370,7 @@ def run_comparison(
         "epoch": 0,
         "total_epochs": epochs,
         "model_a": {
-            "name": f"{parsed.optimizer} (Current)",
+            "name": f"{parsed.optimizer} lr={parsed.lr or 0.01} ({parsed.loss_function})",
             "train_loss": 0, "train_acc": 0,
             "val_loss": 0, "val_acc": 0,
         },
@@ -407,7 +407,7 @@ def run_comparison(
             "epoch": epoch,
             "total_epochs": epochs,
             "model_a": {
-                "name": f"{parsed.optimizer} (Current)",
+                "name": f"{parsed.optimizer} lr={parsed.lr or 0.01} ({parsed.loss_function})",
                 "train_loss": round(train_loss_a, 6) if not math.isnan(train_loss_a) else "NaN",
                 "train_acc": round(train_acc_a, 4),
                 "val_loss": round(val_loss_a, 6) if not math.isnan(val_loss_a) else "NaN",
